@@ -1,4 +1,4 @@
---// Teleport Tween Loop Script + Auto Jump Anti Kursi + Diam 6 detik + Pastikan Touch + Delay Auto Loop 8 detik + Reset Jika Mati
+--// Teleport Tween Loop Script + Auto Jump Anti Kursi + Diam 6 detik + Pastikan Touch + Delay Auto Loop 8 detik + Reset Jika Mati + UI Credit
 
 local checkpoints = {
     Vector3.new(135.67999267578125, 144.2759552001953, -174.7223358154297),
@@ -63,6 +63,17 @@ Info.TextColor3 = Color3.new(0.8,0.8,0.8)
 Info.BackgroundTransparency = 1
 Info.Parent = Frame
 
+--// Credit UI
+local Credit = Instance.new("TextLabel")
+Credit.Size = UDim2.new(1, -20, 0, 20)
+Credit.Position = UDim2.new(0, 10, 0, 120) -- di bawah Info
+Credit.Text = "Made by Alomani"
+Credit.TextColor3 = Color3.fromRGB(200,200,200)
+Credit.BackgroundTransparency = 1
+Credit.TextScaled = true
+Credit.Font = Enum.Font.SourceSans
+Credit.Parent = Frame
+
 --// Fungsi tween teleport
 local function tweenTo(pos)
     local char = player.Character or player.CharacterAdded:Wait()
@@ -93,7 +104,7 @@ local function tweenTo(pos)
             task.wait(autoLoopDelay)
             Status.Text = "Status: Memulai Teleport"
             Info.Text = ""
-            return -- hentikan tween saat mati
+            return
         end
         task.wait(0.1)
     end
