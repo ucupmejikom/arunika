@@ -1,0 +1,195 @@
+--// Teleport Tween Loop Script + Auto Jump Anti Kursi + Diam 6 detik + Pastikan Touch + Delay Auto Loop 8 detik + UI Update
+
+local checkpoints = {
+    Vector3.new(135.67999267578125, 144.2759552001953, -174.7223358154297),
+    Vector3.new(326.3758850097656, 93.02803802490234, -433.9565734863281),
+    Vector3.new(476.0933532714844, 172.28485107421875, -940.20263671875),
+    Vector3.new(930.0972290039062, 136.3822021484375, -626.0289306640625),
+    Vector3.new(923.4161987304688, 103.36900329589844, 279.5971984863281),
+    Vector3.new(253, 325, 706)
+}
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+
+local teleportEnabled = false
+local currentIndex = 1
+local tweenSpeed = 100 -- studs per second
+local stayTime = 6 -- detik diam di checkpoint
+local tolerance = 8 -- radius toleransi untuk dianggap “menyentuh”
+local autoJumpInterval = 1 -- interval auto jump tiap detik
+local autoLoopDelay = 8 -- delay sebelum auto loop setelah respawn
+
+--// Anti AFK
+for i,v in pairs(getconnections(player.Idled)) do
+    v:Disable()
+end
+
+--// UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.CoreGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 140)
+Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Frame.BackgroundTransparency = 0.2
+Frame.Parent = ScreenGui
+Frame.Active = true
+Frame.Draggable = true
+
+local Toggle = Instance.new("TextButton")
+Toggle.Size = UDim2.new(1, -20, 0, 40)
+Toggle.Position = UDim2.new(0, 10, 0, 10)
+Toggle.Text = "Start Teleport"
+Toggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Parent = Frame
+
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 40)
+Status.Position = UDim2.new(0, 10, 0, 60)
+Status.Text = "Status: Idle"
+Status.TextColor3 = Color3.new(1,1,1)
+Status.BackgroundTransparency = 1
+Status.Parent = Frame
+
+local Info = Instance.new("TextLabel")
+Info.Size = UDim2.new(1, -20, 0, 20)
+Info.Position = UDim2.new(0, 10, 0, 100)
+Info.Text = ""
+Info.TextColor3 = Color3.new(0.8,0.8,0.8)
+Info.BackgroundTransparency = 1
+Info.Parent = Frame
+
+--// Fungsi tween teleport
+local function tweenTo(pos)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    local distance = (hrp.Position - pos).Magnitude
+    local time = distance / tweenSpeed
+
+    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(pos + Vector3.new(0,5,0))})
+
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+--// Pastikan player benar-benar menyentuh checkpoint & diam
+local function waitUntilTouched(pos)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local humanoid = char:WaitForChild("Humanoid")
+
+    local stayed = 0
+    while teleportEnabled do
+        if humanoid.Sit then humanoid.Sit = false end
+        humanoid.Jump = true
+
+        local distance = (hrp.Position - pos).Magnitude
+        if distance <= tolerance then
+            stayed += 1
+            Info.Text = "Diam & Menyentuh Pos "..currentIndex.." ("..stayed.."/"..stayTime.."s)"
+            Status.Text = "Status: Diam di Pos "..currentIndex
+        else
+            stayed = 0
+            Info.Text = "Belum menyentuh pos, tunggu..."
+            Status.Text = "Status: Menuju Pos "..currentIndex
+        end
+
+        if stayed >= stayTime then
+            break
+        end
+        task.wait(autoJumpInterval)
+    end
+end
+
+--// Loop teleport utama
+local function teleportLoop()
+    while teleportEnabled do
+        local char = player.Character or player.CharacterAdded:Wait()
+        if not char:FindFirstChild("HumanoidRootPart") then
+            repeat task.wait(0.5) until char:FindFirstChild("HumanoidRootPart")
+        end
+
+        local pos = checkpoints[currentIndex]
+        Status.Text = "Status: Menuju Pos "..currentIndex
+        Info.Text = ""
+        tweenTo(pos)
+        Status.Text = "Status: Sampai Pos "..currentIndex
+
+        waitUntilTouched(pos) -- pastikan menyentuh sebelum lanjut
+
+        -- Respawn jika terakhir
+        if currentIndex == #checkpoints then
+            Status.Text = "Status: Respawn..."
+            Info.Text = "Tunggu "..autoLoopDelay.." detik sebelum auto loop"
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+
+            repeat task.wait(0.5) until player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            task.wait(autoLoopDelay) -- delay setelah respawn
+            Status.Text = "Status: Memulai Teleport"
+            Info.Text = ""
+            currentIndex = 1
+        else
+            currentIndex += 1
+        end
+    end
+end
+
+--// Toggle button
+Toggle.MouseButton1Click:Connect(function()
+    if teleportEnabled then
+        teleportEnabled = false
+        Toggle.Text = "Start Teleport"
+        Status.Text = "Status: Idle"
+        Info.Text = ""
+    else
+        teleportEnabled = true
+        Toggle.Text = "Stop Teleport"
+        task.spawn(teleportLoop)
+    end
+end)
+
+--// Auto Jump Loop Paralel
+task.spawn(function()
+    while true do
+        if teleportEnabled then
+            local char = player.Character
+            if char then
+                local humanoid = char:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    if humanoid.Sit then humanoid.Sit = false end
+                    humanoid.Jump = true
+                end
+            end
+        end
+        task.wait(autoJumpInterval)
+    end
+end)
+
+--// Auto start loop jika respawn
+player.CharacterAdded:Connect(function(char)
+    if teleportEnabled then
+        Status.Text = "Status: Respawn..."
+        Info.Text = "Tunggu "..autoLoopDelay.." detik sebelum auto loop"
+        task.wait(autoLoopDelay)
+        Status.Text = "Status: Memulai Teleport"
+        Info.Text = ""
+        task.spawn(teleportLoop)
+
+        -- Auto jump saat respawn
+        task.spawn(function()
+            local humanoid = char:WaitForChild("Humanoid")
+            while teleportEnabled and humanoid.Health > 0 do
+                if humanoid.Sit then humanoid.Sit = false end
+                humanoid.Jump = true
+                task.wait(autoJumpInterval)
+            end
+        end)
+    end
+end)
