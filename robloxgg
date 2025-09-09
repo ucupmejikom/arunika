@@ -15,7 +15,7 @@ local player = Players.LocalPlayer
 
 local teleportEnabled = false
 local currentIndex = 1
-local tweenSpeed = 160 -- studs per second
+local tweenSpeed = 80 -- studs per second
 local stayTime = 6 -- detik diam di checkpoint
 local tolerance = 8 -- radius toleransi
 local autoJumpInterval = 1 -- interval auto jump tiap detik
